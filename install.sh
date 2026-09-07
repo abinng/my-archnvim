@@ -5,8 +5,15 @@ GITHUB_USER="abinng"
 REPO_NAME="my-archnvim"
 BRANCH="main"
 
-echo "==> [1/4] 安装系统级依赖..."
-sudo pacman -S --needed --noconfirm git curl tar xz unzip glow nodejs npm 2>/dev/null || true
+echo "==> [1/4] 安装全套开发套件与系统依赖 (C++/Python/LSP/工具链)..."
+sudo pacman -S --needed --noconfirm \
+    git curl tar xz unzip glow \
+    gcc clang cmake make ninja gdb \
+    ripgrep fzf \
+    nodejs npm \
+    python python-pip python-pynvim python-pillow python-openai python-tiktoken \
+    lua-language-server pyright \
+    2>/dev/null || true
 
 # 安装 WSL 剪贴板支持
 if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/null; then
