@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
 
 echo "==> [1/5] 预装系统基础依赖 (which, unzip, glow, wget, win32yank)..."
-sudo pacman -S --needed --noconfirm which unzip glow wget 2>/dev/null || true
+sudo pacman -S --needed --noconfirm which neovim unzip glow wget 2>/dev/null || true
 
 if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/null; then
     curl -sLo /tmp/win32yank.zip https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
