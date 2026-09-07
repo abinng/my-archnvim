@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
 
 echo "==> [1/4] 预装前置基础依赖 (which, unzip, glow, win32yank)..."
 # 必须最优先装好 which 与 unzip，否则底座脚本的环境探测和剪贴板解压会直接报错
-sudo pacman -S --needed --noconfirm which unzip glow 2>/dev/null || true
+sudo pacman -S --needed --noconfirm which unzip nvim glow 2>/dev/null || true
 
 # 适配 WSL2 原生剪贴板
 if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/null; then
