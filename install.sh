@@ -5,7 +5,7 @@ GITHUB_USER="abinng"
 REPO_NAME="my-archnvim"
 BRANCH="main"
 
-echo "==> [1/4] 安装基础依赖 (win32yank, glow, nodejs)..."
+echo "==> [1/4] 安装系统级依赖..."
 sudo pacman -S --needed --noconfirm git curl tar xz unzip glow nodejs npm 2>/dev/null || true
 
 # 安装 WSL 剪贴板支持
@@ -18,14 +18,14 @@ if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/nul
     rm -f /tmp/win32yank.zip
 fi
 
-echo "==> [2/4] 备份可能存在的旧 Neovim 配置..."
+echo "==> [2/4] 备份已有 Neovim 配置..."
 [ -d "$HOME/.config/nvim" ] && mv "$HOME/.config/nvim" "$HOME/.config/nvim.bak.$(date +%s)"
 
-echo "==> [3/4] 解压已修补的完整 Neovim 0.12 环境..."
+echo "==> [3/4] 拉取并解压预构建包..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
 
 if [ -f "$SCRIPT_DIR/archvim-bundle.tar.xz" ]; then
-    echo "检测到本地包，直接本地解压..."
+    echo "使用本地包解压..."
     tar -xJf "$SCRIPT_DIR/archvim-bundle.tar.xz" -C "$HOME"
 else
     echo "从 GitHub 拉取预构建包..."
@@ -33,7 +33,22 @@ else
     curl -L --progress-bar "$DOWNLOAD_URL" | tar -xJf - -C "$HOME"
 fi
 
-echo "==> [4/4] 对齐软链接与权限..."
+echo "==> [4/4] 自动修复跨用户/跨机器路径与软链接..."
+# 1. 修复 packer_compiled.lua 中的硬编码用户名路径
+find "$HOME/.config/nvim" -name "*packer_compiled*.lua" -exec sed -i "s|/home/[a-zA-Z0-9._-]*|$HOME|g" {} +
+
+# 2. 修复所有指向原用户 /home/xxx 的失效软链接
+if [ -d "$HOME/.local/share/nvim" ]; then
+    for link in $(find "$HOME/.local/share/nvim" -type l); do
+        target=$(readlink "$link")
+        if [[ "$target" =~ ^/home/[^/]+/(.*) ]]; then
+            new_target="$HOME/${BASH_REMATCH[1]}"
+            ln -sf "$new_target" "$link"
+        fi
+    done
+fi
+
+# 3. 补齐 which-key 与 markdown-preview 相对链接
 PACKER_START="$HOME/.local/share/nvim/site/pack/packer/start"
 PREDOWNLOAD="$HOME/.config/nvim/lua/archvim/predownload"
 
@@ -45,5 +60,5 @@ MDP_BIN="$PACKER_START/markdown-preview.nvim/app/bin/markdown-preview-linux"
 [ -f "$MDP_BIN" ] && chmod +x "$MDP_BIN"
 
 echo "=========================================================="
-echo "  恭喜！环境恢复完毕，输入 nvim 即可直接进入无报错工作流！"
+echo "  恭喜！环境恢复完毕，输入 nvim 即可直接进入工作流！"
 echo "=========================================================="
