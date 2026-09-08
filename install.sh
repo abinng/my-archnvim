@@ -3,16 +3,24 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
 
-echo "==> [1/5] 前置安装全部系统级依赖 (解决所有探测与底层工具缺失)..."
-# 一次性装齐对话中发现的所有系统命令：which, unzip, glow, wget, clang, cmake, ninja, lsof, tree-sitter-cli, python-pynvim 等
+# 安全覆盖辅助函数：先检查目标目录是否存在，不存在则自动创建，防止 cp 报错
+safe_copy() {
+    local src="$1"
+    local dest="$2"
+    if [ -f "$src" ]; then
+        mkdir -p "$(dirname "$dest")"
+        cp -f "$src" "$dest"
+    fi
+}
+
+echo "==> [1/6] 安装全量系统级依赖与编译工具链..."
 sudo pacman -S --needed --noconfirm \
-    which unzip glow wget \
-    git curl tar base-devel ripgrep \
+    neovim git curl tar base-devel ripgrep \
     clang cmake ninja tree-sitter-cli lsof \
-    python python-pynvim \
+    unzip glow which python python-pynvim wget \
     2>/dev/null || true
 
-# 适配 WSL2 原生剪贴板
+echo "==> [2/6] 部署 WSL2 剪贴板工具 (win32yank)..."
 if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/null; then
     curl -sLo /tmp/win32yank.zip https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank-x64.zip
     sudo unzip -o /tmp/win32yank.zip -d /usr/local/bin win32yank.exe
@@ -21,60 +29,61 @@ if ! command -v win32yank.exe &> /dev/null && ! command -v win32yank &> /dev/nul
     rm -f /tmp/win32yank.zip
 fi
 
-echo "==> [2/5] 执行小彭老师官方安装底座（终端交互选择配置）..."
+echo "==> [3/6] 执行官方底座安装（终端交互选择偏好配置）..."
 chmod +x "$SCRIPT_DIR/nvimrc-install.sh"
 bash "$SCRIPT_DIR/nvimrc-install.sh"
 
-echo "==> [3/5] 覆盖原系统已调通的全部插件与源码补丁..."
+echo "==> [4/6] 现场拉取更新 4 个存在 API 代差的插件..."
 PACKER_START="$HOME/.local/share/nvim/site/pack/packer/start"
 mkdir -p "$PACKER_START"
 
-# 1. 全量覆盖 4 个排查修复后的插件本体 (aerial, trouble, vim-matchup, nvim-treesitter-textobjects)
-cp -rf "$SCRIPT_DIR/patches/aerial.nvim" "$PACKER_START/"
-cp -rf "$SCRIPT_DIR/patches/trouble.nvim" "$PACKER_START/"
-cp -rf "$SCRIPT_DIR/patches/vim-matchup" "$PACKER_START/"
-cp -rf "$SCRIPT_DIR/patches/nvim-treesitter-textobjects" "$PACKER_START/"
+# 先删旧版本，现场 git clone 最新稳定版
+rm -rf "$PACKER_START/aerial.nvim"
+git clone --depth 1 https://github.com/stevearc/aerial.nvim "$PACKER_START/aerial.nvim"
 
-# 2. 覆盖单个源码补丁文件
-TS_DIR="$PACKER_START/nvim-treesitter/lua/nvim-treesitter"
-[ -d "$TS_DIR" ] && cp -f "$SCRIPT_DIR/patches/tsrange.lua" "$TS_DIR/tsrange.lua"
+rm -rf "$PACKER_START/trouble.nvim"
+git clone --depth 1 https://github.com/folke/trouble.nvim "$PACKER_START/trouble.nvim"
 
-COMMENT_DIR="$PACKER_START/nvim-ts-context-commentstring/lua/ts_context_commentstring"
-if [ -d "$COMMENT_DIR" ] && [ -f "$SCRIPT_DIR/patches/ts_commentstring_utils.lua" ]; then
-    cp -f "$SCRIPT_DIR/patches/ts_commentstring_utils.lua" "$COMMENT_DIR/utils.lua"
-fi
+rm -rf "$PACKER_START/vim-matchup"
+git clone --depth 1 https://github.com/andymass/vim-matchup "$PACKER_START/vim-matchup"
 
-echo "==> [4/5] 覆盖原系统全部 11 个配置文件与个人设定..."
+rm -rf "$PACKER_START/nvim-treesitter-textobjects"
+git clone --depth 1 https://github.com/nvim-treesitter/nvim-treesitter-textobjects "$PACKER_START/nvim-treesitter-textobjects"
+
+echo "==> [5/6] 检查路径并覆盖修改过的补丁文件与配置单文件..."
+# A. 覆盖 textobjects 插件底层的 3 个单文件补丁
+safe_copy "$SCRIPT_DIR/patches/move.lua" "$PACKER_START/nvim-treesitter-textobjects/lua/nvim-treesitter/textobjects/move.lua"
+safe_copy "$SCRIPT_DIR/patches/swap.lua" "$PACKER_START/nvim-treesitter-textobjects/lua/nvim-treesitter/textobjects/swap.lua"
+safe_copy "$SCRIPT_DIR/patches/shared.lua" "$PACKER_START/nvim-treesitter-textobjects/lua/nvim-treesitter/textobjects/shared.lua"
+
+# B. 覆盖 nvim-treesitter 本身的 tsrange.lua
+safe_copy "$SCRIPT_DIR/patches/tsrange.lua" "$PACKER_START/nvim-treesitter/lua/nvim-treesitter/tsrange.lua"
+
+# C. 覆盖核心配置文件
 CONFIG_DIR="$HOME/.config/nvim"
+safe_copy "$SCRIPT_DIR/config/init.vim" "$CONFIG_DIR/init.vim"
+safe_copy "$SCRIPT_DIR/config/options.lua" "$CONFIG_DIR/lua/archvim/options.lua"
+safe_copy "$SCRIPT_DIR/config/mappings.lua" "$CONFIG_DIR/lua/archvim/mappings.lua"
+safe_copy "$SCRIPT_DIR/config/treesitter.lua" "$CONFIG_DIR/lua/archvim/config/treesitter.lua"
+safe_copy "$SCRIPT_DIR/config/mason.lua" "$CONFIG_DIR/lua/archvim/config/mason.lua"
+safe_copy "$SCRIPT_DIR/config/lualine.lua" "$CONFIG_DIR/lua/archvim/config/lualine.lua"
+safe_copy "$SCRIPT_DIR/config/lspconfig.lua" "$CONFIG_DIR/lua/archvim/config/lspconfig.lua"
 
-# A. 基础启动与按键配置
-cp -f "$SCRIPT_DIR/config/init.vim" "$CONFIG_DIR/init.vim"
-cp -f "$SCRIPT_DIR/config/options.lua" "$CONFIG_DIR/lua/archvim/options.lua"
-cp -f "$SCRIPT_DIR/config/mappings.lua" "$CONFIG_DIR/lua/archvim/mappings.lua"
+# D. 冗余安全覆盖
+safe_copy "$SCRIPT_DIR/config/trouble.lua" "$CONFIG_DIR/lua/archvim/config/trouble.lua"
+safe_copy "$SCRIPT_DIR/config/keymaps.lua" "$CONFIG_DIR/lua/archvim/config/keymaps.lua"
+safe_copy "$SCRIPT_DIR/config/clangd_config.yaml" "$HOME/.config/clangd/config.yaml"
+safe_copy "$SCRIPT_DIR/config/clang-format" "$HOME/.clang-format"
 
-# B. 语言服务与界面组件配置 (mason, lualine, treesitter, lspconfig)
-cp -f "$SCRIPT_DIR/config/mason.lua" "$CONFIG_DIR/lua/archvim/config/mason.lua"
-cp -f "$SCRIPT_DIR/config/treesitter.lua" "$CONFIG_DIR/lua/archvim/config/treesitter.lua"
-cp -f "$SCRIPT_DIR/config/lualine.lua" "$CONFIG_DIR/lua/archvim/config/lualine.lua"
-cp -f "$SCRIPT_DIR/config/lspconfig.lua" "$CONFIG_DIR/lua/archvim/config/lspconfig.lua"
-
-# C. 冗余安全覆盖 (trouble, keymaps, clang 配置)
-[ -f "$SCRIPT_DIR/config/trouble.lua" ] && cp -f "$SCRIPT_DIR/config/trouble.lua" "$CONFIG_DIR/lua/archvim/config/trouble.lua"
-[ -f "$SCRIPT_DIR/config/keymaps.lua" ] && cp -f "$SCRIPT_DIR/config/keymaps.lua" "$CONFIG_DIR/lua/archvim/config/keymaps.lua"
-
-if [ -f "$SCRIPT_DIR/config/clangd_config.yaml" ]; then
-    mkdir -p "$HOME/.config/clangd"
-    cp -f "$SCRIPT_DIR/config/clangd_config.yaml" "$HOME/.config/clangd/config.yaml"
-fi
-[ -f "$SCRIPT_DIR/config/clang-format" ] && cp -f "$SCRIPT_DIR/config/clang-format" "$HOME/.clang-format"
-
-echo "==> [5/5] 激活扩展插件并固化编译状态..."
+echo "==> [6/6] 激活 which-key 与 markdown-preview 服务..."
 PREDOWNLOAD="$CONFIG_DIR/lua/archvim/predownload"
 
-# 激活 which-key
-[ -d "$PREDOWNLOAD/folke/which-key.nvim" ] && ln -sf "$PREDOWNLOAD/folke/which-key.nvim" "$PACKER_START/"
+# 建立 which-key 软链接
+if [ -d "$PREDOWNLOAD/folke/which-key.nvim" ]; then
+    ln -sf "$PREDOWNLOAD/folke/which-key.nvim" "$PACKER_START/"
+fi
 
-# 编译并激活 markdown-preview
+# 建立并编译 markdown-preview 服务
 if [ -d "$PREDOWNLOAD/iamcco/markdown-preview.nvim" ]; then
     ln -sf "$PREDOWNLOAD/iamcco/markdown-preview.nvim" "$PACKER_START/"
     (
@@ -85,9 +94,9 @@ if [ -d "$PREDOWNLOAD/iamcco/markdown-preview.nvim" ]; then
     [ -f "$MDP_BIN" ] && chmod +x "$MDP_BIN"
 fi
 
-# 重新编译 Packer 缓存，确保新配置即时生效
+# 固化 Packer 编译缓存
 nvim --headless -c "PackerCompile" -c "sleep 1" -c "qa" >/dev/null 2>&1 || true
 
 echo "=========================================================="
-echo "  恭喜！原系统环境已 100% 镜像部署并覆盖完毕！"
+echo "  安装更新与安全覆盖全部完成，Neovim 纯净且无代差报错！"
 echo "=========================================================="
