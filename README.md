@@ -21,7 +21,7 @@
 在全新安装的 Arch Linux / WSL2 终端中直接运行：
 
 ```bash
-git clone --depth=1 [https://github.com/abinng/my-archnvim.git](https://github.com/abinng/my-archnvim.git)
+git clone --depth=1 https://github.com/abinng/my-archnvim.git
 cd my-archnvim
 sh install.sh
 ```
