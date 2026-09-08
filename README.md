@@ -12,6 +12,7 @@
   * 集成 `win32yank.exe` 剪贴板自动部署，打通宿主机与虚拟机剪贴板双向同步。
   * 修复 `gx` 打开超链接报 `explorer.exe` 异常退出。
   * 解决 Markdown 浏览器实时预览唤起失效问题。
+* **可选 Tmux 终端环境集成**：脚本最后支持一键部署小彭老师优化的 Tmux 配置，提供 Vi 风格窗格导航、fzf 模糊会话选择器及 Gruvbox 状态栏[cite: 6]。
 * **轻量化补丁架构**：仓库仅保存关键补丁单文件与个性化配置，安装时按需现场更新上游稳定插件并执行安全覆盖（`safe_copy`），告别臃肿子模块。
 
 ---
@@ -21,14 +22,17 @@
 在全新安装的 Arch Linux / WSL2 终端中直接运行：
 
 ```bash
-git clone --depth=1 https://github.com/abinng/my-archnvim.git
+git clone --depth=1 [https://github.com/abinng/my-archnvim.git](https://github.com/abinng/my-archnvim.git)
 cd my-archnvim
 sh install.sh
 ```
 
 *(如果已配置 GitHub SSH Key，也可以使用 `git clone --depth=1 git@github.com:abinng/my-archnvim.git`)*
 
-> **安装提示**：脚本会自动通过 `pacman` 安装必需的编译工具链与依赖（`clang`、`cmake`、`ninja`、`glow` 等）。底座解压完毕后，终端会短暂拉起原版的偏好配置问答供选择 Nerd Fonts 与按键习惯，随后补丁层将自动完成无感注入与编译。
+> **安装提示**：
+> 1. 脚本会自动通过 `pacman` 安装必需的编译工具链与依赖（`clang`、`cmake`、`ninja`、`glow` 等）。
+> 2. 底座解压完毕后，终端会短暂拉起原版的偏好配置问答供选择 Nerd Fonts 与按键习惯，随后补丁层将自动完成无感注入与编译。
+> 3. 安装脚本的最后阶段会提示是否安装 **Tmux** 插件及配置（输入 `y` 即可自动完成依赖安装与 TPM 插件初始化）[cite: 6]。
 
 ---
 
